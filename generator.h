@@ -23,7 +23,7 @@ private:
     void setMask(cv::Mat img);
     void makeSimplePuzzle(cv::Mat imgOriginal);
     void floodFillPuzzle(cv::Mat &puzzle, cv::Point pxl, int cnt, cv::Point center);
-    int shufflePuzzles();
+    void shufflePuzzles();
     void cutImageOnNParts();
 };
 

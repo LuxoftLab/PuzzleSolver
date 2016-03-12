@@ -5,7 +5,6 @@ const char* originalPath = "C://OpenCV-2.4.9//opencv//sources//samples//c//airpl
 const char* maskPath = "C://Users//KirillUser//Documents//CannyStill1//new_mask_airplane.jpg";
 const char* resultPath = "C://Users//KirillUser//Documents//CannyStill1//result_airplane.jpg";
 const char* generatedPuzzlesPath = "C://Users//KirillUser//Documents//CannyStill1//generatedImage_airplane.jpg";
-const char* generatedPuzzlesParts = "C://Users//KirillUser//Documents//CannyStill1//airplane_part_";
 
 const int IMG_SZ_WIDTH = 512;
 const int IMG_SZ_HEIGHT = 512;

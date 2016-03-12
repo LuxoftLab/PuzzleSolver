@@ -5,6 +5,9 @@
 #include <iostream>
 #include <string>
 #include "generator.h"
+#include "generatedresults.h"
+
+GeneratedResults res;
 
 PuzzleGenerator::PuzzleGenerator()
 {
@@ -239,7 +242,7 @@ void PuzzleGenerator::floodFillPuzzle(cv::Mat &puzzle, cv::Point pxl, int cnt, c
     }
 }
 
-int PuzzleGenerator::shufflePuzzles()
+void PuzzleGenerator::shufflePuzzles()
 {
     cv::Mat imgOriginal;		// input image
 
@@ -249,7 +252,7 @@ int PuzzleGenerator::shufflePuzzles()
 
     if (imgOriginal.empty()) {									// if unable to open image
         std::cout << "error: image not read from file\n\n";		// show error message on command line
-        return(0);												// and exit program
+        return;												    // and exit
     }
 
     cv::Size genSZ(5*(IMG_SZ_WIDTH  + (AMOUNT+1)) / 2,
@@ -400,6 +403,7 @@ void PuzzleGenerator::cutImageOnNParts()
 
     std::vector <cv::Mat> resultImages;
 
+
     cv::Mat temp;
 
     imgOriginal = cv::imread(generatedPuzzlesPath);
@@ -417,19 +421,7 @@ void PuzzleGenerator::cutImageOnNParts()
             resultImages.push_back(temp);
         }
     }
-
-    int cnt = 1;
-    for(auto it : resultImages)
-    {
-        std::string path = generatedPuzzlesParts;
-        cv::namedWindow("imgShuffled ", CV_WINDOW_AUTOSIZE);
-        cv::imshow("imgShuffled ", it);
-        path += char(cnt + 48);
-        cnt++;
-        path += ".jpg";
-        cv::imwrite(path, it);
-        cv::waitKey(0);
-    }
+    res.setGeneratedResults(resultImages);
 }
 
 void PuzzleGenerator::generate(cv::Mat img)
@@ -444,8 +436,25 @@ void PuzzleGenerator::generate(cv::Mat img)
 int main() {
 
     PuzzleGenerator generator;
+
     cv::Mat img = cv::imread(originalPath);
     generator.generate(img);
+
+
+    char ans;
+    std::cout << "save? (Y/N)" << "\n";
+    std::cin >> ans;
+
+    if(ans == 'Y')
+    {
+        res.save();
+        std::cout << "Success\n";
+    }
+    else
+    {
+        std::cout << "Result isn't saved\n";
+    }
+
 
     return 0;
 }

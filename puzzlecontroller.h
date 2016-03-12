@@ -12,7 +12,6 @@ public:
     PuzzleController();
     void generatePuzzles(cv::Mat img);
     void save();
-    void showGeneratedPuzzles();
 };
 
 #endif // PUZZLECONTROLLER_H
