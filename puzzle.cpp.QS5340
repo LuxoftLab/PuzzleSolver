@@ -1,0 +1,224 @@
+#include "puzzle.h"
+
+#include <chrono>
+#include <thread>
+
+Puzzle::Puzzle(int puzzle_num, cv::Mat &img, const std::vector<cv::Point> &corners)
+    : mPuzzleNumber(puzzle_num)
+    , mPuzzleImg(img)
+    , mCorners(corners)
+{
+    if(mCorners[0].x > mCorners[1].x)
+        std::swap(mCorners[0], mCorners[1]);
+    if(mCorners[2].x > mCorners[3].x)
+        std::swap(mCorners[2], mCorners[3]);
+    processPuzzle(img);
+}
+
+int Puzzle::getHeight()
+{
+    //return mMaxPt.x - mMinPt.x + 1;
+    return 0;
+}
+
+int Puzzle::getWidth()
+{
+    //return mMaxPt.y - mMinPt.y + 1;
+    return 0;
+}
+
+int Puzzle::getPuzzleNumber()
+{
+    return mPuzzleNumber;
+}
+
+
+const cv::Mat &Puzzle::getImage()
+{
+    return mPuzzleImg;
+}
+
+void Puzzle::processPuzzle(const cv::Mat &img)
+{
+    auto toIdx = [&img](int i, int j){return i * img.cols + j;};
+
+    std::vector <cv::Point> moves1 {
+                    cv::Point(0, -1),
+                    cv::Point(0, 1),
+                    cv::Point(-1, 0),
+                    cv::Point(1, 0)};
+
+    std::vector <cv::Point> moves {
+                    cv::Point(0, -1),
+                    cv::Point(0, 1),
+                    cv::Point(-1, 0),
+                    cv::Point(1, 0),
+                    cv::Point(1, -1),
+                    cv::Point(1, 1),
+                    cv::Point(-1, -1),
+                    cv::Point(-1, 1)};
+
+    std::vector <int> matr(img.cols * img.rows, -1);
+    std::queue <cv::Point> q;
+    q.push(cv::Point(0, 0));
+    while(!q.empty())
+    {
+        cv::Point cur = q.front();
+        q.pop();
+        for(cv::Point &dt : moves)
+        {
+            cv::Point p = cur + dt;
+            if(p.x >= 0 && p.x < img.rows &&
+                p.y >= 0 && p.y < img.cols
+                    && matr[toIdx(p.x, p.y)] == -1)
+            {
+                cv::Vec3b clr = img.at<cv::Vec3b>(p.x, p.y);
+                if(clr == cv::Vec3b(0,0,0))
+                {
+                    matr[toIdx(p.x, p.y)] = 0;
+                    q.push(p);
+                }
+            }
+        }
+    }
+
+    cv::Point min_pt(img.rows-1, img.cols-1);
+    cv::Point max_pt(0, 0);
+    for(int i = 0; i < img.rows; i++)
+    {
+        for(int j = 0; j < img.cols; j++)
+        {
+            if(matr[toIdx(i, j)] == -1)
+            {
+                if(i < min_pt.x)
+                    min_pt.x = i;
+                if(i > max_pt.x)
+                    max_pt.x = i;
+                if(j < min_pt.y)
+                    min_pt.y = j;
+                if(j > max_pt.y)
+                    max_pt.y = j;
+
+                matr[toIdx(i, j)] = 1;
+                bool flag = false;
+                for(cv::Point &dt : moves)
+                {
+                    cv::Point p = cv::Point(i, j) + dt;
+                    if(p.x >= 0 && p.x < img.rows &&
+                        p.y >= 0 && p.y < img.cols
+                            && matr[toIdx(p.x, p.y)] == 0)
+                    {
+                        flag = true;
+                    }
+                }
+                if(flag)
+                    matr[toIdx(i, j)] = 2;
+            }
+        }
+    }
+
+
+    mPuzzleImg = cv::Mat(max_pt.x - min_pt.x + 1,  max_pt.y - min_pt.y, img.type(), cv::Scalar(0,0,0));
+    for(int i = 0; i < img.rows; i++)
+    {
+        for(int j = 0; j < img.cols; j++)
+        {
+            if(matr[toIdx(i, j)] > 0)
+            {
+                mPuzzleImg.at<cv::Vec3b>(i-min_pt.x, j - min_pt.y) = img.at <cv::Vec3b>(i, j);
+            }
+        }
+    }
+    std::vector <cv::Point> edges;
+    std::function<void(cv::Point)>  fillEdgesVector = [&matr, &edges, &moves1, &toIdx, &min_pt, &img, &fillEdgesVector](cv::Point pt)
+    {
+        edges.push_back(pt - min_pt);
+        std::swap(edges.back().x, edges.back().y);
+        matr[toIdx(pt.x, pt.y)] = 3;
+        for(cv::Point dt : moves1)
+        {
+            cv::Point p = pt + dt;
+            if(p.x >= 0 && p.x < img.rows &&
+                p.y >= 0 && p.y < img.cols
+                    && matr[toIdx(p.x, p.y)] > 0 && matr[toIdx(p.x, p.y)] == 2)
+            {
+                if(std::abs(edges.back().x+min_pt.y - p.x) + std::abs(edges.back().y+min_pt.x - p.y) < 20)
+                    fillEdgesVector(p);
+                else
+                    break;
+            }
+        }
+    };
+    correctCorners(matr, img);
+    fillEdgesVector(cv::Point(mCorners[0].y, mCorners[0].x));
+
+    for(cv::Point &p : mCorners)
+    {
+        p -= cv::Point(min_pt.y, min_pt.x);
+        cv::circle(mPuzzleImg, p, 3, cv::Scalar(0, 255, 255), 1);
+    }
+    int cnt = 0;
+    for(cv::Point &p : edges)
+    {
+        cv::circle(mPuzzleImg, p, 3, cv::Scalar(0, 255, 0), 1);
+        for(int i = 0; i < 4; i++)
+        {
+            if(p == mCorners[i])
+                std::cout << i << "\n";
+        }
+        if(cnt == 20)
+        {
+        cv::imshow("puzzle", mPuzzleImg);
+        cv::waitKey();
+        cnt = -1;
+        }
+        cnt++;
+    }
+    std::cout << "done\n";
+    cv::imshow("puzzle", mPuzzleImg);
+    cv::waitKey();
+}
+
+void Puzzle::correctCorners(const std::vector<int> &matr, const cv::Mat &img)
+{
+    static int win_size = 5;
+    static int win_value_size = 3;
+    auto toIdx = [&img](int i, int j){return i * img.cols + j;};
+
+    for(cv::Point &corner : mCorners)
+    {
+        cv::Point best_pt;
+        int best_val = 0;
+        for(int i = corner.x-win_size; i <= corner.x + win_size; i++)
+        {
+            for(int j = corner.y-win_size; j <= corner.y + win_size; j++)
+            {
+                if(i >= 0 && i < img.cols &&
+                    j >= 0 && j < img.rows
+                        && matr[toIdx(j, i)] == 2)
+                {
+                    int value = 0;
+                    for(int x = i - win_value_size; x <= i + win_value_size; x++)
+                    {
+                        for(int y = j - win_value_size; y <= j + win_value_size; y++)
+                        {
+                            if(x >= 0 && x < img.cols &&
+                                y >= 0 && y < img.rows)
+                                value += (matr[toIdx(y, x)] == 0);
+                            else
+                                value++;
+                        }
+                    }
+                    if(value > best_val)
+                    {
+                        best_val = value;
+                        best_pt = cv::Point(i, j);
+                    }
+                }
+            }
+        }
+        corner = best_pt;
+    }
+}
+
+
