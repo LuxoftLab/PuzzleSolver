@@ -26,7 +26,11 @@ private:
 public:
     static PuzzleCutter& getInstanse();
     std::unique_ptr<std::vector <Puzzle>> cutImage(const std::vector<std::string> &files);
+    std::unique_ptr<std::vector <Puzzle>> fromFile(std::string file_path);
+    void saveToFile(std::shared_ptr<std::vector <Puzzle>> puzzles, std::string file_path);
     void rotateImg(cv::Mat& src, double angle, cv::Mat& dst);
+
+    void getBinaryMask(const cv::Mat &src, cv::Mat &dst);
 
 private:
     void convertToEdges(const cv::Mat &src, cv::Mat &dst);
