@@ -14,8 +14,10 @@ std::vector <cv::Point> Puzzle::sMoves = {
     cv::Point(-1, 1)};
 
 Puzzle::Puzzle(int puzzle_id, cv::Mat img,  std::vector<cv::Point> corners)
-    : mPuzzleId(puzzle_id)
 {
+    for(int i = 0; i < 4; i++)
+        mData[i].mPuzzleId = puzzle_id;
+
     std::vector <int> matr(img.cols * img.rows, -1);
     splitBackground(matr, img);
     findPuzzle(matr, img);
@@ -27,9 +29,9 @@ Puzzle::Puzzle(int puzzle_id, cv::Mat img,  std::vector<cv::Point> corners)
     angle = geometry::angle_fix(angle/geometry::pi * 180);
     cv::Mat img_rotate;
     PuzzleCutter::getInstanse().rotateImg(img, angle, img_rotate);
-    mCorners[0] = corners;
+    mData[0].mCorners = corners;
     cv::Point center(img.cols / 2, img.rows / 2);
-    for(cv::Point &p : mCorners[0])
+    for(cv::Point &p : mData[0].mCorners)
         p = geometry::vector_rotate(p - center, -angle/180*geometry::pi) + center;
     processPuzzle(img_rotate, Puzzle::PuzzleAlignment::BottomSide);
 
@@ -38,8 +40,8 @@ Puzzle::Puzzle(int puzzle_id, cv::Mat img,  std::vector<cv::Point> corners)
     angle = geometry::vector_angle(geometry::toVector(corners[0], corners[2])) - geometry::pi/2;
     angle = geometry::angle_fix(angle/geometry::pi * 180);
     PuzzleCutter::getInstanse().rotateImg(img, angle, img_rotate);
-    mCorners[1] = corners;
-    for(cv::Point &p : mCorners[1])
+    mData[1].mCorners = corners;
+    for(cv::Point &p : mData[1].mCorners)
         p = geometry::vector_rotate(p - center, -angle/180*geometry::pi) + center;
     processPuzzle(img_rotate, Puzzle::PuzzleAlignment::LeftSide);
 
@@ -48,8 +50,8 @@ Puzzle::Puzzle(int puzzle_id, cv::Mat img,  std::vector<cv::Point> corners)
     angle = geometry::vector_angle(geometry::toVector(corners[2], corners[3]));
     angle = geometry::angle_fix(angle/geometry::pi * 180);
     PuzzleCutter::getInstanse().rotateImg(img, angle, img_rotate);
-    mCorners[2] = corners;
-    for(cv::Point &p : mCorners[2])
+    mData[2].mCorners = corners;
+    for(cv::Point &p : mData[2].mCorners)
         p = geometry::vector_rotate(p - center, -angle/180*geometry::pi) + center;
     processPuzzle(img_rotate, Puzzle::PuzzleAlignment::TopSide);
 
@@ -58,72 +60,124 @@ Puzzle::Puzzle(int puzzle_id, cv::Mat img,  std::vector<cv::Point> corners)
     angle = geometry::vector_angle(geometry::toVector(corners[1], corners[3])) - geometry::pi/2;
     angle = geometry::angle_fix(angle/geometry::pi * 180);
     PuzzleCutter::getInstanse().rotateImg(img, angle, img_rotate);
-    mCorners[3] = corners;
-    for(cv::Point &p : mCorners[3])
+    mData[3].mCorners = corners;
+    for(cv::Point &p : mData[3].mCorners)
         p = geometry::vector_rotate(p - center, -angle/180*geometry::pi) + center;
     processPuzzle(img_rotate, Puzzle::PuzzleAlignment::RightSide);
 
 }
 
+Puzzle::Puzzle(Puzzle::PuzzleData *data)
+{
+    for(int i = 0; i < 4; i++)
+        mData[i] = data[i];
+}
+
 
 int Puzzle::getPuzzleId() const
 {
-    return mPuzzleId;
+    return mData[0].mPuzzleId;
 }
 
 
 const cv::Mat &Puzzle::getImage(PuzzleAlignment align) const
 {
-    return mPuzzleImg[size_t(align)];
+    return mData[size_t(align)].mPuzzleImg;
 }
 
 int Puzzle::getHeight() const
 {
-    return mPuzzleImg[0].rows;
+    return mData[0].mPuzzleImg.rows;
 }
 
 int Puzzle::getWidth() const
 {
-    return mPuzzleImg[0].cols;
+    return mData[0].mPuzzleImg.cols;
 }
 
 cv::Point Puzzle::getCorner(Puzzle::PuzzleAlignment align, int corner) const
 {
-    return mCorners[size_t(align)][corner];
+    return mData[size_t(align)].mCorners[corner];
 }
 
 const std::vector<cv::Point> &Puzzle::getEdgePoints(Puzzle::PuzzleAlignment align) const
 {
-    return mEdgePoints[size_t(align)];
+    return mData[size_t(align)].mEdgePoints;
 }
 
-const std::vector<cv::Scalar> &Puzzle::getEdgeColos(Puzzle::PuzzleAlignment align) const
+const std::vector<cv::Scalar> &Puzzle::getEdgeColors(Puzzle::PuzzleAlignment align) const
 {
-    return mEdgeColors[size_t(align)];
+    return mData[size_t(align)].mEdgeColors;
+}
+
+std::pair<cv::Point, cv::Point> Puzzle::getEdgeRect(Puzzle::PuzzleAlignment align) const
+{
+    return mData[size_t(align)].mEdgeRect;
 }
 
 bool Puzzle::isStraightSide(Puzzle::PuzzleAlignment align) const
 {
-    static int max_dist = 5;
+    static int max_dist = 20;
 
     switch(align)
     {
     case PuzzleAlignment::BottomSide:
-        return mEdgeRect[size_t(align)].second.y - mEdgeRect[size_t(align)].first.y < max_dist;
+        return mData[size_t(align)].mEdgeRect.second.y - mData[size_t(align)].mEdgeRect.first.y < max_dist;
         break;
     case PuzzleAlignment::LeftSide:
-        return mEdgeRect[size_t(align)].second.x - mEdgeRect[size_t(align)].first.x < max_dist;
+        return mData[size_t(align)].mEdgeRect.second.x - mData[size_t(align)].mEdgeRect.first.x < max_dist;
         break;
     case PuzzleAlignment::TopSide:
-        return mEdgeRect[size_t(align)].second.y - mEdgeRect[size_t(align)].first.y < max_dist;
+        return mData[size_t(align)].mEdgeRect.second.y - mData[size_t(align)].mEdgeRect.first.y < max_dist;
         break;
     case PuzzleAlignment::RightSide:
-        return mEdgeRect[size_t(align)].second.x - mEdgeRect[size_t(align)].first.x < max_dist;
+        return mData[size_t(align)].mEdgeRect.second.x - mData[size_t(align)].mEdgeRect.first.x < max_dist;
         break;
     default:
         break;
     }
     return false;
+}
+
+Puzzle::PuzzleData Puzzle::getPuzzle(Puzzle::PuzzleAlignment align) const
+{
+    return mData[size_t(align)];
+}
+
+Puzzle::PuzzleData Puzzle::rotatePuzzle(Puzzle::PuzzleAlignment align, double angle) const
+{
+    PuzzleData ret;
+    ret.mPuzzleId = mData[size_t(align)].mPuzzleId;
+    ret.mPuzzleImg = mData[size_t(align)].mPuzzleImg.clone();
+    ret.mCorners = mData[size_t(align)].mCorners;
+
+    cv::Mat p_img(ret.mPuzzleImg.rows * 2, ret.mPuzzleImg.cols * 2, ret.mPuzzleImg.type(), cv::Scalar(0,0,0));
+    auto toIdx = [&ret](int i, int j){return i * ret.mPuzzleImg.cols + j;};
+    for(int i = 0; i < ret.mPuzzleImg.rows; i++)
+    {
+        for(int j = 0; j < ret.mPuzzleImg.cols; j++)
+        {
+            p_img.at <cv::Vec3b>(i + ret.mPuzzleImg.rows/2,
+                                 j + ret.mPuzzleImg.cols / 2) = ret.mPuzzleImg.at <cv::Vec3b>(i, j);
+        }
+    }
+    for(int i = 0; i < 4; ++i)
+        ret.mCorners[i] += cv::Point(ret.mPuzzleImg.cols/2, ret.mPuzzleImg.rows / 2);
+    ret.mPuzzleImg = p_img;
+    PuzzleCutter::getInstanse().rotateImg(ret.mPuzzleImg, angle, ret.mPuzzleImg);
+    cv::Point center(ret.mPuzzleImg.cols / 2, ret.mPuzzleImg.rows / 2);
+    for(cv::Point &p : ret.mCorners)
+    {
+        p = geometry::vector_rotate(p - center, -angle/180*geometry::pi) + center;
+       // cv::circle(ret.mPuzzleImg, p, 3, cv::Scalar(120,120,17), 1);
+    }
+
+    std::vector <int> matr(ret.mPuzzleImg.cols * ret.mPuzzleImg.rows, -1);
+    splitBackground(matr, ret.mPuzzleImg);
+    findPuzzle(matr, ret.mPuzzleImg);
+    correctCorners(matr, ret.mPuzzleImg, ret.mCorners);
+
+    return ret;
 }
 
 
@@ -139,14 +193,14 @@ void Puzzle::processPuzzle(const cv::Mat &img, PuzzleAlignment align)
     cv::Point &min_pt = border_pts.first;
     cv::Point &max_pt = border_pts.second;
 
-    mPuzzleImg[size_t(align)] = cv::Mat(max_pt.x - min_pt.x + 1,  max_pt.y - min_pt.y, img.type(), cv::Scalar(0,0,0));
+    mData[size_t(align)].mPuzzleImg = cv::Mat(max_pt.x - min_pt.x + 1,  max_pt.y - min_pt.y, img.type(), cv::Scalar(0,0,0));
     for(int i = 0; i < img.rows; i++)
     {
         for(int j = 0; j < img.cols; j++)
         {
             if(matr[toIdx(i, j)] > 0)
             {
-                mPuzzleImg[size_t(align)].at<cv::Vec3b>(i-min_pt.x, j - min_pt.y) = img.at <cv::Vec3b>(i, j);
+                mData[size_t(align)].mPuzzleImg.at<cv::Vec3b>(i-min_pt.x, j - min_pt.y) = img.at <cv::Vec3b>(i, j);
             }
         }
     }
@@ -174,9 +228,9 @@ void Puzzle::processPuzzle(const cv::Mat &img, PuzzleAlignment align)
         }
     };
 
-    correctCorners(matr, img, mCorners[size_t(align)]);
-    fillEdgesVector(cv::Point(mCorners[size_t(align)][0].y, mCorners[size_t(align)][0].x));
-    for(cv::Point &p : mCorners[size_t(align)])
+    correctCorners(matr, img, mData[size_t(align)].mCorners);
+    fillEdgesVector(cv::Point(mData[size_t(align)].mCorners[0].y, mData[size_t(align)].mCorners[0].x));
+    for(cv::Point &p : mData[size_t(align)].mCorners)
     {
         p -= cv::Point(min_pt.y, min_pt.x);
         //cv::circle(mPuzzleImg[size_t(align)], p, 3, cv::Scalar(0, 255, 255), 1);
@@ -190,8 +244,8 @@ void Puzzle::processPuzzle(const cv::Mat &img, PuzzleAlignment align)
     {
         for(int j = 0; j < 4; j++)
         {
-            int v = std::abs(mCorners[size_t(align)][j].x - edges[i].x) +
-                    std::abs(mCorners[size_t(align)][j].y - edges[i].y);
+            int v = std::abs(mData[size_t(align)].mCorners[j].x - edges[i].x) +
+                    std::abs(mData[size_t(align)].mCorners[j].y - edges[i].y);
             if(v < cornerIdx[j].second)
                 cornerIdx[j] = {i, v};
         }
@@ -201,55 +255,55 @@ void Puzzle::processPuzzle(const cv::Mat &img, PuzzleAlignment align)
     {
         if(cornerIdx[1].first < cornerIdx[2].first)
             for(int i = 0; i <= cornerIdx[1].first; i++)
-                this->mEdgePoints[size_t(align)].push_back(edges[i]);
+                mData[size_t(align)].mEdgePoints.push_back(edges[i]);
         else
             for(int i = int(edges.size())-1; i >= cornerIdx[1].first; i--)
-                this->mEdgePoints[size_t(align)].push_back(edges[i]);
+                mData[size_t(align)].mEdgePoints.push_back(edges[i]);
     }
     else if(align == Puzzle::PuzzleAlignment::LeftSide)
     {
         if(cornerIdx[1].first < cornerIdx[2].first)
             for(int i = cornerIdx[2].first; i < int(edges.size()); i++)
-                this->mEdgePoints[size_t(align)].push_back(edges[i]);
+                mData[size_t(align)].mEdgePoints.push_back(edges[i]);
         else
             for(int i = cornerIdx[2].first; i >= 0; i--)
-                this->mEdgePoints[size_t(align)].push_back(edges[i]);
+                mData[size_t(align)].mEdgePoints.push_back(edges[i]);
     }
     else if(align == Puzzle::PuzzleAlignment::TopSide)
     {
         if(cornerIdx[1].first < cornerIdx[2].first)
             for(int i = cornerIdx[2].first; i >= cornerIdx[3].first; i--)
-                this->mEdgePoints[size_t(align)].push_back(edges[i]);
+                mData[size_t(align)].mEdgePoints.push_back(edges[i]);
         else
             for(int i = cornerIdx[2].first; i <= cornerIdx[3].first; i++)
-                this->mEdgePoints[size_t(align)].push_back(edges[i]);
+                mData[size_t(align)].mEdgePoints.push_back(edges[i]);
     }
     else if(align == Puzzle::PuzzleAlignment::RightSide)
     {
         if(cornerIdx[1].first < cornerIdx[2].first)
             for(int i = cornerIdx[3].first; i >= cornerIdx[1].first; i--)
-                this->mEdgePoints[size_t(align)].push_back(edges[i]);
+                mData[size_t(align)].mEdgePoints.push_back(edges[i]);
         else
             for(int i = cornerIdx[3].first; i <= cornerIdx[1].first; i++)
-                this->mEdgePoints[size_t(align)].push_back(edges[i]);
+                mData[size_t(align)].mEdgePoints.push_back(edges[i]);
     }
 
-    mEdgeRect[size_t(align)].first.x = std::numeric_limits <int>::max();
-    mEdgeRect[size_t(align)].first.y = std::numeric_limits <int>::max();
-    mEdgeRect[size_t(align)].second.x = std::numeric_limits <int>::min();
-    mEdgeRect[size_t(align)].second.y = std::numeric_limits <int>::min();
+    mData[size_t(align)].mEdgeRect.first.x = std::numeric_limits <int>::max();
+    mData[size_t(align)].mEdgeRect.first.y = std::numeric_limits <int>::max();
+    mData[size_t(align)].mEdgeRect.second.x = std::numeric_limits <int>::min();
+    mData[size_t(align)].mEdgeRect.second.y = std::numeric_limits <int>::min();
 
-    for(cv::Point &p : mEdgePoints[size_t(align)])
+    for(cv::Point &p : mData[size_t(align)].mEdgePoints)
     {
-        mEdgeColors[size_t(align)].push_back(meanColor(align, p));
-        mEdgeRect[size_t(align)].first.x = std::min(mEdgeRect[size_t(align)].first.x, p.x);
-        mEdgeRect[size_t(align)].first.y = std::min(mEdgeRect[size_t(align)].first.y, p.y);
-        mEdgeRect[size_t(align)].second.x = std::max(mEdgeRect[size_t(align)].second.x, p.x);
-        mEdgeRect[size_t(align)].second.y = std::max(mEdgeRect[size_t(align)].second.y, p.y);
+        mData[size_t(align)].mEdgeColors.push_back(meanColor(align, p));
+        mData[size_t(align)].mEdgeRect.first.x = std::min(mData[size_t(align)].mEdgeRect.first.x, p.x);
+        mData[size_t(align)].mEdgeRect.first.y = std::min(mData[size_t(align)].mEdgeRect.first.y, p.y);
+        mData[size_t(align)].mEdgeRect.second.x = std::max(mData[size_t(align)].mEdgeRect.second.x, p.x);
+        mData[size_t(align)].mEdgeRect.second.y = std::max(mData[size_t(align)].mEdgeRect.second.y, p.y);
     }
 }
 
-void Puzzle::splitBackground(std::vector<int> &matr, const cv::Mat &img)
+void Puzzle::splitBackground(std::vector<int> &matr, const cv::Mat &img) const
 {
     auto toIdx = [&img](int i, int j){return i * img.cols + j;};
 
@@ -277,7 +331,7 @@ void Puzzle::splitBackground(std::vector<int> &matr, const cv::Mat &img)
     }
 }
 
-std::pair<cv::Point, cv::Point> Puzzle::findPuzzle(std::vector<int> &matr, const cv::Mat &img)
+std::pair<cv::Point, cv::Point> Puzzle::findPuzzle(std::vector<int> &matr, const cv::Mat &img) const
 {
     auto toIdx = [&img](int i, int j){return i * img.cols + j;};
 
@@ -319,7 +373,7 @@ std::pair<cv::Point, cv::Point> Puzzle::findPuzzle(std::vector<int> &matr, const
     return std::make_pair(min_pt, max_pt);
 }
 
-void Puzzle::correctCorners(const std::vector<int> &matr, const cv::Mat &img, std::vector<cv::Point> &corners)
+void Puzzle::correctCorners(const std::vector<int> &matr, const cv::Mat &img, std::vector<cv::Point> &corners) const
 {
     static int win_size = 5;
     static int win_value_size = 3;
@@ -363,7 +417,7 @@ void Puzzle::correctCorners(const std::vector<int> &matr, const cv::Mat &img, st
 
 cv::Scalar Puzzle::meanColor(Puzzle::PuzzleAlignment align, cv::Point p)
 {
-    static int win_size = 7;
+    static int win_size = 15;
 
     int color[3] = {0, 0, 0};
     int total = 0;
@@ -371,12 +425,12 @@ cv::Scalar Puzzle::meanColor(Puzzle::PuzzleAlignment align, cv::Point p)
     {
         for(int j = p.y - win_size; j <= p.y + win_size; j++)
         {
-            if(i >= 0 && j < mPuzzleImg[size_t(align)].rows &&
-               j >= 0 && i < mPuzzleImg[size_t(align)].cols
-                    && mPuzzleImg[size_t(align)].at <cv::Vec3b> (j, i) != cv::Vec3b::all(0))
+            if(i >= 0 && j < mData[size_t(align)].mPuzzleImg.rows &&
+               j >= 0 && i < mData[size_t(align)].mPuzzleImg.cols
+                    && mData[size_t(align)].mPuzzleImg.at <cv::Vec3b> (j, i) != cv::Vec3b::all(0))
             {
                 for(int k = 0; k < 3; k++)
-                    color[k] += mPuzzleImg[size_t(align)].at <cv::Vec3b> (j, i)[k];
+                    color[k] += mData[size_t(align)].mPuzzleImg.at <cv::Vec3b> (j, i)[k];
                 total++;
             }
 
